@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#151433" />
+  <title>Thrustfall</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23151433'/%3E%3Crect x='9' y='6' width='14' height='11' rx='4' fill='%23ff8a5c'/%3E%3Crect x='15' y='10' width='7' height='4' rx='2' fill='%230d1b2a'/%3E%3Crect x='10' y='18' width='12' height='7' rx='2' fill='%23ff8a5c'/%3E%3Cpath d='M12 26l2 4h4l2-4z' fill='%2358c7ff'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #151433; --panel: rgba(18, 14, 40, 0.82); --line: rgba(255, 255, 255, 0.12);
+      --text: #f4f1ff; --muted: #b9b3d6; --accent: #ff8a5c; --accent2: #58c7ff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; cursor: crosshair; }
+    .overlay { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; overflow-y: auto;
+      background: radial-gradient(ellipse at center, rgba(21, 20, 51, 0.35), rgba(21, 20, 51, 0.8)); }
+    .overlay[hidden] { display: none; }
+    .card { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+      padding: 24px; backdrop-filter: blur(8px); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45); }
+    h1 { margin: 0; font-size: clamp(34px, 7vw, 52px); font-weight: 900; letter-spacing: 0.04em; line-height: 1;
+      background: linear-gradient(180deg, #ffd9a0, #ff8a5c 60%, #e0466a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    h2 { margin: 0 0 4px; font-size: 28px; }
+    .tag { margin: 6px 0 20px; color: var(--muted); font-size: 14px; }
+    label { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 10px; margin: 10px 0; font-size: 14px; color: var(--muted); }
+    input[type=text], select { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.06); color: var(--text); font: inherit; }
+    select option { background: #1d1a3d; }
+    .range { display: flex; gap: 10px; align-items: center; }
+    .range input { flex: 1; accent-color: var(--accent); }
+    .range output { width: 22px; text-align: right; color: var(--text); font-weight: 700; }
+    button { width: 100%; margin-top: 10px; padding: 12px; border: 0; border-radius: 10px; font: 800 16px system-ui, sans-serif;
+      letter-spacing: 0.05em; cursor: pointer; color: #1b0f1f; background: linear-gradient(180deg, #ffb37a, #ff7a50); }
+    button.ghost { background: rgba(255, 255, 255, 0.08); color: var(--text); border: 1px solid var(--line); }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent2); outline-offset: 2px; }
+    .check { grid-template-columns: auto 1fr; }
+    details { margin-top: 16px; font-size: 13px; color: var(--muted); }
+    summary { cursor: pointer; color: var(--text); }
+    kbd { padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.06); font-size: 12px; }
+    ul { padding-left: 18px; line-height: 1.7; margin: 8px 0 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0 6px; font-size: 14px; }
+    th, td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line); }
+    th:first-child, td:first-child { text-align: left; }
+    td:first-child::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 8px; background: var(--dot, #fff); }
+    tr.me td { color: #ffd36b; font-weight: 700; }
+    #rotate { display: none; }
+    @media (orientation: portrait) and (pointer: coarse) {
+      #rotate { display: grid; position: fixed; inset: 0; z-index: 10; place-items: center; text-align: center; padding: 24px; background: var(--bg); font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div class="overlay" id="menu">
+    <form class="card" id="menu-form">
+      <h1>THRUSTFALL</h1>
+      <p class="tag">Jetpack robot skirmish. Fly, dig, and blast your way to the top.</p>
+      <label>Callsign <input type="text" id="name" maxlength="14" autocomplete="off" /></label>
+      <label>Mode
+        <select id="mode"><option value="ffa">Free-for-all</option><option value="team">Team battle</option></select>
+      </label>
+      <label>Bots <span class="range"><input type="range" id="bots" min="1" max="11" /><output id="bots-out"></output></span></label>
+      <label>Difficulty
+        <select id="difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select>
+      </label>
+      <label>Kill limit
+        <select id="limit"><option value="10">10</option><option value="20">20</option><option value="30">30</option></select>
+      </label>
+      <label class="check"><input type="checkbox" id="mute" /> Mute sound</label>
+      <button type="submit">DEPLOY</button>
+      <details>
+        <summary>Controls</summary>
+        <ul>
+          <li><kbd>A</kbd>/<kbd>D</kbd> move · <kbd>W</kbd> or <kbd>Space</kbd> jetpack</li>
+          <li>Mouse aim · <kbd>Left click</kbd> fire · <kbd>Right click</kbd>/<kbd>G</kbd> grenade</li>
+          <li><kbd>Q</kbd>/wheel swap · <kbd>R</kbd> reload · <kbd>E</kbd> take weapon</li>
+          <li><kbd>Tab</kbd> scores · <kbd>Esc</kbd> pause</li>
+          <li>Touch: left stick moves (push up to fly), right stick aims and fires</li>
+        </ul>
+      </details>
+    </form>
+  </div>
+
+  <div class="overlay" id="pause" hidden>
+    <div class="card">
+      <h2>Paused</h2>
+      <button id="resume">RESUME</button>
+      <button id="restart" class="ghost">RESTART MATCH</button>
+      <button id="quit" class="ghost">QUIT TO MENU</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="end" hidden>
+    <div class="card">
+      <h2 id="result-title"></h2>
+      <div class="tag" id="result-sub"></div>
+      <table>
+        <thead><tr><th>Pilot</th><th>K</th><th>D</th></tr></thead>
+        <tbody id="result-rows"></tbody>
+      </table>
+      <button id="again">PLAY AGAIN</button>
+      <button id="to-menu" class="ghost">MENU</button>
+    </div>
+  </div>
+
+  <div id="rotate">Rotate your device to landscape to play.</div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
